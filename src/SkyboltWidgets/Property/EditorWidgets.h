@@ -76,4 +76,6 @@ QWidget* createOptionalVariantEditor(const PropertyEditorWidgetFactoryMap& facto
 
 QWidget* createPropertyVectorEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, const ListEditorIcons& listEditorIcons, QWidget* parent);
 
+QWidget* createPropertyTupleEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, QWidget* parent);
+
 } // namespace skybolt

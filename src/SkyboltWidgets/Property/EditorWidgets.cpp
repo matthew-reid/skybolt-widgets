@@ -504,4 +504,32 @@ QWidget* createPropertyVectorEditor(const PropertyEditorWidgetFactoryMap& factor
 	return nullptr;
 }
 
+template <typename KeyT, typename ValueT>
+std::vector<ValueT> toValuesVector(const std::map<KeyT, ValueT>& m)
+{
+	std::vector<ValueT> r;
+	for (const auto& i : m)
+	{
+		r.push_back(i.second);
+	}
+	return r;
+}
+
+QWidget* createPropertyTupleEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, QWidget* parent)
+{
+	auto propertyEditor = new PropertyEditor(std::make_shared<PropertyEditorWidgetFactoryMap>(factories), parent);
+
+	auto propertyTuple = property->value().value<PropertyTuple>();
+
+	auto model = std::make_shared<PropertiesModel>();
+	for (const auto& childProperty : propertyTuple.items)
+	{
+		model->addProperty(childProperty);
+	}
+
+	propertyEditor->setModel(model);
+
+	return propertyEditor;
+}
+
 } // namespace skybolt

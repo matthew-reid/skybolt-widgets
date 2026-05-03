@@ -12,6 +12,70 @@
 
 namespace skybolt {
 
+static QtPropertyUpdaterApplier createTupleValueProperty(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const ReflTypePropertyFactoryMap& typePropertyFactories)
+{
+	QString name = QString::fromStdString(property->getName());
+
+	// Create child property for each tuple item
+	PropertyTuple propertyTuple;
+	std::vector<PropertiesModel::QtPropertyUpdater> updaters;
+	std::vector<PropertiesModel::QtPropertyApplier> appliers;
+
+	for (const auto& [childName, childProperty] : property->getType()->getProperties())
+	{	
+		auto tupleInstanceGetter = [instanceGetter, property, childProperty] () -> std::optional<refl::Instance> {
+			auto parentInstance = instanceGetter();
+			return parentInstance ? property->getValue(*parentInstance) : std::optional<refl::Instance>{};
+		};
+
+		if (std::optional<QtPropertyUpdaterApplier> childUpdatersApplier = reflPropertyToQt(typeRegistry, tupleInstanceGetter, childProperty, typePropertyFactories); childUpdatersApplier)
+		{
+			propertyTuple.items.push_back(childUpdatersApplier->property);
+			updaters.push_back(std::move(childUpdatersApplier->updater));
+			appliers.push_back(std::move(childUpdatersApplier->applier));
+		}
+		else
+		{
+			// No property factory for this child property, so we skip it and it won't be editable in the UI.
+		}
+	}
+
+	// Create the property for the tuple itself
+	QtPropertyUpdaterApplier r;
+	r.property = createQtProperty(name, QVariant::fromValue(propertyTuple));
+	r.property->enabled = !property->isReadOnly();
+
+	r.updater = [updaters, children = propertyTuple.items](QtProperty& qtProperty) {
+		int i = 0;
+		for (const auto& updater : updaters)
+		{
+			updater(*children[i]);
+			++i;
+		}
+	};
+	r.updater(*r.property);
+
+	if (!property->isReadOnly())
+	{
+		r.applier = [appliers, children = propertyTuple.items](const QtProperty& qtProperty) {
+			int i = 0;
+			for (const auto& applier : appliers)
+			{
+				applier(*children[i]);
+				++i;
+			}
+		};
+	}
+
+	// Connect child property value change signals to parent property value change signal, so that when a child property value changes, the parent property valueChanged signal is emitted to notify the UI to update.
+	for (const auto& itemProperty : propertyTuple.items)
+	{
+		QObject::connect(itemProperty.get(), &QtProperty::valueChanged, r.property.get(), &QtProperty::valueChanged);
+	}
+
+	return r;
+}
+
 std::optional<QtPropertyUpdaterApplier> reflPropertyToQt(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const ReflTypePropertyFactoryMap& typePropertyFactories)
 {
 	auto type = property->getType();
@@ -24,10 +88,18 @@ std::optional<QtPropertyUpdaterApplier> reflPropertyToQt(refl::TypeRegistry& typ
 		}
 	}
 
+	// If type has a registered property factory, use it to create a QtProperty for this refl::Property
 	if (const auto& i = typePropertyFactories.find(type); i != typePropertyFactories.end())
 	{
 		return i->second(typeRegistry, instanceGetter, property); 
 	}
+	
+	// No property factory registered for this type, so we fallback to a nested editor if the type has properties
+	if (!type->getProperties().empty())
+	{
+		return createTupleValueProperty(typeRegistry, instanceGetter, property, typePropertyFactories);
+	}
+
 	return std::nullopt;
 }
 

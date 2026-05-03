@@ -14,7 +14,7 @@ namespace skybolt {
 template <typename ReflValueT>
 inline QVariant reflValueToQt(const refl::Property& property, const ReflValueT& value)
 {
-	return value;
+	return QVariant::fromValue(value);
 }
 
 template <typename ReflValueT>

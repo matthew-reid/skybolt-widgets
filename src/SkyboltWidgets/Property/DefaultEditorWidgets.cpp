@@ -22,13 +22,19 @@ std::unique_ptr<PropertyEditorWidgetFactoryMap> createDefaultEditorWidgetFactory
 		{ QMetaType::Type::QVector3D, &createVector3DEditor }
 	});
 
+	// Note: we capture the raw pointer to the map in the lambdas below, but this is safe because moving a unique_ptr does not invalidate a raw pointer to it, and the lambdas are
+	// stored inside the map which means the lifetime of the raw pointer is tied to the map.
+	// See https://stackoverflow.com/questions/62132659/does-stdmove-invalidate-a-raw-pointer-obtained-from-unique-ptrget
+
 	(*m)[qMetaTypeId<OptionalProperty>()] = [factories = m.get()] (QtProperty* property, QWidget* parent) {
 		return createOptionalVariantEditor(*factories, property, parent);
 	};
 	(*m)[qMetaTypeId<PropertyVector>()] = [factories = m.get(), listEditorIcons = config.listEditorIcons](QtProperty* property, QWidget* parent) {
 		return createPropertyVectorEditor(*factories, property, listEditorIcons, parent);
 	};
-
+	(*m)[qMetaTypeId<PropertyTuple>()] = [factories = m.get()](QtProperty* property, QWidget* parent) {
+		return createPropertyTupleEditor(*factories, property, parent);
+	};
 	return m;
 }
 

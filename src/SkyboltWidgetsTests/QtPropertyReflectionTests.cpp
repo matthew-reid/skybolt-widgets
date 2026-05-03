@@ -186,4 +186,56 @@ TEST_CASE("Reflect vector property to Qt")
 	CHECK(valueChangeCount == 3);
 }
 
+struct TestObjectWithChild
+{
+	TestObject child;
+};
+
+SKYBOLT_REFLECT(TestObjectWithChild) {
+	registry.type<TestObjectWithChild>("TestObjectWithChild")
+		.property("child", &TestObjectWithChild::child);
+}
+
+TEST_CASE("Reflect tuple property to Qt")
+{
+	refl::TypeRegistry typeRegistry;
+	ReflTypePropertyFactoryMap typePropertiesFactories = createDefaultReflTypePropertyFactories(typeRegistry);
+
+	// Create model property
+	TestObjectWithChild object;
+	ReflInstanceGetter instanceGetter = [&] { return refl::makeRefInstance(typeRegistry, &object); };
+	refl::PropertyPtr reflProperty = typeRegistry.getTypeRequired<TestObjectWithChild>()->getProperty("child");
+	REQUIRE(reflProperty);
+
+	// Create reflected UI property
+	std::optional<QtPropertyUpdaterApplier> propertyUpdater = reflPropertyToQt(typeRegistry, instanceGetter, reflProperty, typePropertiesFactories);
+	REQUIRE(propertyUpdater);
+	auto property = propertyUpdater->property.get();
+	REQUIRE(property);
+	REQUIRE(property->value().userType() == qMetaTypeId<PropertyTuple>());
+
+	// Listen to property value change events
+	int valueChangeCount = 0;
+	QObject::connect(property, &QtProperty::valueChanged, [&]() { valueChangeCount++; });
+
+	// Assert that tuple has all the expected child properties
+	auto propertyTuple = property->value().value<PropertyTuple>();
+	CHECK(propertyTuple.items.size() == 1);
+	CHECK(valueChangeCount == 0);
+
+	// Set model property and check that its value is reflected to UI
+	object.child.intProperty = 1;
+	propertyUpdater->updater(*property);
+	propertyTuple = property->value().value<PropertyTuple>();
+	REQUIRE(propertyTuple.items.size() == 1);
+	CHECK(propertyTuple.items.front()->value().toInt() == 1);
+	CHECK(valueChangeCount == 1);
+
+	// Modify UI property and check that its value is reflected to model
+	propertyTuple.items.front()->setValue(2);
+	propertyUpdater->applier(*property);
+	CHECK(object.child.intProperty == 2);
+	CHECK(valueChangeCount == 2);
+}
+
 #endif // BUILD_WITH_SKYBOLT_REFLECT
