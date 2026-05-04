@@ -40,8 +40,6 @@ QWidget* createReflPropertyInstanceEditor(QtProperty* property, QWidget* parent,
 
 void addReflEditorsToFactoryMap(PropertyEditorWidgetFactoryMap& m, skybolt::refl::TypeRegistry* typeRegistry, const ReflTypePropertyFactoryMapPtr& typePropertyFactories, const PropertyEditorWidgetFactoryMapPtr& factoryMap);
 
-ReflTypePropertyFactoryMap createDefaultReflTypePropertyFactories(skybolt::refl::TypeRegistry& typeRegistry);
-
 } // namespace skybolt
 
 Q_DECLARE_METATYPE(skybolt::ReflPropertyInstanceVariant);

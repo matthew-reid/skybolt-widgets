@@ -4,8 +4,8 @@
 #ifdef BUILD_WITH_SKYBOLT_REFLECT
 
 #include "QtPropertyReflection.h"
-#include "QtPropertyReflectionConversion.h"
 #include "PropertyEditor.h"
+#include "QtMetaTypes.h"
 
 #include <SkyboltReflect/Reflection.h>
 #include <QVector3D>
@@ -115,6 +115,17 @@ void addReflPropertiesToModel(refl::TypeRegistry& typeRegistry, PropertiesModel&
 	}
 }
 
+template <typename KeyT, typename ValueT>
+std::vector<ValueT> toValuesVector(const std::map<KeyT, ValueT>& m)
+{
+	std::vector<ValueT> r;
+	for (const auto& i : m)
+	{
+		r.push_back(i.second);
+	}
+	return r;
+}
+
 QWidget* createReflPropertyInstanceEditor(QtProperty* property, QWidget* parent, refl::TypeRegistry* typeRegistry, const ReflTypePropertyFactoryMap& typePropertyFactories, const PropertyEditorWidgetFactoryMapPtr& factoryMap)
 {
 	auto instanceGetter = [property] () -> std::optional<refl::Instance> {
@@ -143,18 +154,6 @@ void addReflEditorsToFactoryMap(PropertyEditorWidgetFactoryMap& m, refl::TypeReg
 	result[qMetaTypeId<ReflPropertyInstanceVariant>()] = [typeRegistry, typePropertyFactories, factoryMap] (QtProperty* property, QWidget* parent) {
 		return createReflPropertyInstanceEditor(property, parent, typeRegistry, *typePropertyFactories, factoryMap);
 	};
-}
-
-ReflTypePropertyFactoryMap createDefaultReflTypePropertyFactories(refl::TypeRegistry& typeRegistry)
-{
-	std::map<refl::TypePtr, PropertyFactory> typePropertyFactories = {
-		{ typeRegistry.getOrCreateType<std::string>(), createPropertyFactory<std::string>(QString()) },
-		{ typeRegistry.getOrCreateType<bool>(), createPropertyFactory<bool>(false) },
-		{ typeRegistry.getOrCreateType<int>(), createPropertyFactory<int>(0) },
-		{ typeRegistry.getOrCreateType<float>(), createPropertyFactory<float>(0.f) },
-		{ typeRegistry.getOrCreateType<double>(), createPropertyFactory<double>(0.0) }
-	};
-	return typePropertyFactories;
 }
 
 } // namespace skybolt

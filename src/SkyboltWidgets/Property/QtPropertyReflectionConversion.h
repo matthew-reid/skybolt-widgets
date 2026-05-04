@@ -4,6 +4,7 @@
 #pragma once
 
 #include "QtMetaTypes.h"
+#include "SkyboltWidgets/Property/QtPropertyReflection.h"
 #include "SkyboltWidgets/Property/QtPropertyMetadata.h"
 #include "SkyboltWidgets/Util/QtTypeConversions.h"
 
@@ -233,17 +234,6 @@ inline void setVectorValues(refl::Instance& vectorInstance, const std::vector<re
 	accessor->setValues(vectorInstance, values);
 }
 
-template <typename KeyT, typename ValueT>
-std::vector<ValueT> toValuesVector(const std::map<KeyT, ValueT>& m)
-{
-	std::vector<ValueT> r;
-	for (const auto& i : m)
-	{
-		r.push_back(i.second);
-	}
-	return r;
-}
-
 template <typename ReflValueT, typename QtValueT>
 QtPropertyUpdaterApplier createVectorValueProperty(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const QtValueT& defaultValue)
 {
@@ -336,6 +326,18 @@ PropertyFactory createPropertyFactory(const QtValueT& defaultValue)
 
 		return createValueProperty<ReflValueT, QtValueT>(typeRegistry, instanceGetter, property, defaultValue);
 	};
+}
+
+inline ReflTypePropertyFactoryMap createDefaultReflTypePropertyFactories(skybolt::refl::TypeRegistry& typeRegistry)
+{
+	std::map<refl::TypePtr, PropertyFactory> typePropertyFactories = {
+		{ typeRegistry.getOrCreateType<std::string>(), createPropertyFactory<std::string>(QString()) },
+		{ typeRegistry.getOrCreateType<bool>(), createPropertyFactory<bool>(false) },
+		{ typeRegistry.getOrCreateType<int>(), createPropertyFactory<int>(0) },
+		{ typeRegistry.getOrCreateType<float>(), createPropertyFactory<float>(0.f) },
+		{ typeRegistry.getOrCreateType<double>(), createPropertyFactory<double>(0.0) }
+	};
+	return typePropertyFactories;
 }
 
 } // namespace skybolt
