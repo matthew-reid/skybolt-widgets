@@ -79,7 +79,7 @@ void PropertyEditor::modelReset(PropertiesModel* model)
 		int rowCount = 0;
 		for (const QtPropertyPtr& property : properties)
 		{
-			auto label = new QLabel(property->name, this);
+			auto label = new QLabel(property->displayName, this);
 			auto labelLayout = new QVBoxLayout();
 			labelLayout->setContentsMargins(3, 3, 6, 3);
 			labelLayout->addWidget(label);

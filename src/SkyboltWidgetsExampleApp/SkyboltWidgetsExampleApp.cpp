@@ -2,13 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 #include <SkyboltWidgets/CollapsiblePanel/CollapsiblePanelWidget.h>
+#include <SkyboltWidgets/Property/ContainerProperties.h>
 #include <SkyboltWidgets/Property/PropertyEditor.h>
 #include <SkyboltWidgets/Property/EditorWidgets.h>
 #include <SkyboltWidgets/Property/DefaultEditorWidgets.h>
 #include <SkyboltWidgets/List/ListEditorWidget.h>
+#include <SkyboltWidgets/Property/ContainerProperties.h>
 #include <SkyboltWidgets/Property/QtProperty.h>
 #include <SkyboltWidgets/Property/QtPropertyMetadata.h>
-#include <SkyboltWidgets/Property/QtMetaTypes.h>
 #include <SkyboltWidgets/ErrorLog/ErrorLogModel.h>
 #include <SkyboltWidgets/ErrorLog/LatestErrorWidget.h>
 #include <SkyboltWidgets/Timeline/TimelineWidget.h>
@@ -71,21 +72,14 @@ static QWidget* createPropertyEditorPanel(QWidget* parent = nullptr)
 	boolToggleProp->setProperty(QtPropertyMetadataKeys::representation, QtPropertyRepresentations::toggleButton);
 
 	// OptionalProperty example
-	OptionalProperty opt;
-	opt.property = createQtProperty("InnerDouble", QVariant(12.345));
-	opt.present = true;
-	auto optionalProp = createQtProperty("OptionalDouble", QVariant::fromValue(opt));
+	
+	auto optionalProp = createOptionalQtProperty("OptionalDouble", QVariant(12.345), /* present */ true);
 
 	// PropertyVector example
-	PropertyVector pv;
-	{
-		pv.itemDefaultValue = QVariant::fromValue(QString("new item"));
-		auto itemA = createQtProperty("itemA", QVariant(QString("Item A")));
-		auto itemB = createQtProperty("itemB", QVariant(QString("Item B")));
-		pv.items.push_back(itemA);
-		pv.items.push_back(itemB);
-	}
-	auto propertyVectorProp = createQtProperty("StringList", QVariant::fromValue(pv));
+	auto propertyVectorProp = createVectorQtProperty("StringList", {
+		QVariant(QString("Item A")),
+		QVariant(QString("Item B"))
+		}, QString{});
 
 	// Add properties to the model
 	model->addProperty(stringProp);

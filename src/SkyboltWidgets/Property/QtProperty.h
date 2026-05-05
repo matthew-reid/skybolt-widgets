@@ -15,7 +15,7 @@ struct QtProperty : public QObject
 {
 	Q_OBJECT
 public:
-	QString name;
+	QString displayName;
 	bool enabled = true;
 
 	void setEnabled(bool e)
@@ -47,7 +47,7 @@ private:
 	QVariant mValue;
 };
 
-QtPropertyPtr createQtProperty(const QString& name, const QVariant& value);
+QtPropertyPtr createQtProperty(const QString& displayName, const QVariant& value);
 
 class PropertiesModel : public QObject
 {

@@ -8,10 +8,10 @@
 
 namespace skybolt {
 
-QtPropertyPtr createQtProperty(const QString& name, const QVariant& value)
+QtPropertyPtr createQtProperty(const QString& displayName, const QVariant& value)
 {
 	auto property = std::make_shared<QtProperty>();
-	property->name = name;
+	property->displayName = displayName;
 	property->setValue(value);
 	return property;
 }

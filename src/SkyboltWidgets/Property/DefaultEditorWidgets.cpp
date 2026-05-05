@@ -2,11 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 #include "DefaultEditorWidgets.h"
+#include "ContainerProperties.h"
 #include "EditorWidgets.h"
 #include "PropertyEditor.h"
 #include "QtPropertyMetadata.h"
 #include "QtPropertyReflection.h"
-#include "QtMetaTypes.h"
 
 namespace skybolt {
 

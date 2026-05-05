@@ -4,8 +4,8 @@
 #ifdef BUILD_WITH_SKYBOLT_REFLECT
 
 #include "QtPropertyReflection.h"
+#include "QtPropertyReflectionConversion.h"
 #include "PropertyEditor.h"
-#include "QtMetaTypes.h"
 
 #include <SkyboltReflect/Reflection.h>
 #include <QVector3D>

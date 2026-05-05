@@ -33,14 +33,15 @@ ItemEditorWidget::ItemEditorWidget(QWidget* contentWidget, QWidget* parent) :
 		});
 }
 
-bool ItemEditorWidget::isCreateitemModelEnalbled() const
+bool ItemEditorWidget::isCreateItemModeEnabled() const
 {
-	return mCreateItemButtonBox->isVisible();
+	return mCreateItemModeEnabled;
 }
 
 void ItemEditorWidget::setCreateItemModeEnabled(bool enabled)
 {
 	mCreateItemButtonBox->setVisible(enabled);
+	mCreateItemModeEnabled = enabled;
 	Q_EMIT setCreateItemModeEnabledChanged(enabled);
 }
 

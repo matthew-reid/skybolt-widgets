@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 #include "EditorWidgets.h"
+#include "ContainerProperties.h"
 #include "PropertyEditor.h"
 #include "QtPropertyMetadata.h"
 #include "QtPropertyReflection.h"
-#include "QtMetaTypes.h"
 #include "Util/QtLayoutUtil.h"
 #include "List/ItemEditorWidget.h"
 #include "List/ListEditorWidget.h"
@@ -16,6 +16,7 @@
 #include <QItemEditorFactory>
 #include <QLabel>
 #include <QListWidget>
+#include <QPointer>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTextEdit>
@@ -268,7 +269,7 @@ QWidget* createBoolEditor(QtProperty* property, QWidget* parent)
 	QAbstractButton* button;
 	if (auto attributeType = property->property(QtPropertyMetadataKeys::representation); attributeType.isValid() && attributeType.toString() == QtPropertyRepresentations::toggleButton)
 	{
-		button = new QPushButton(property->name, parent);
+		button = new QPushButton(property->displayName, parent);
 		button->setCheckable(true);
 	}
 	else
@@ -362,146 +363,257 @@ QWidget* createVector3DEditor(QtProperty* property, QWidget* parent)
 	return new QVector3PropertyEditor(property, { "x", "y", "z" }, parent);
 }
 
+class PropertyVectorEditor : public QWidget
+{
+public:
+	PropertyVectorEditor(const PropertyEditorWidgetFactory& factory, QPointer<QtProperty> property, const ListEditorIcons& listEditorIcons, QWidget* parent = nullptr) :
+		QWidget(parent),
+		mFactory(factory),
+		mProperty(property)
+	{
+		assert(mProperty);
+
+		// Create widgets
+		auto layout = new QVBoxLayout(this);
+		layout->setContentsMargins(0, 0, 0, 0);
+
+		mListWidget = new QListWidget(this);
+		layout->addWidget(mListWidget);
+
+		mListEditorWidget = new ListEditorWidget(listEditorIcons, this);
+		layout->addWidget(mListEditorWidget);
+
+		auto itemEditorContentWidget = new QWidget(this);
+		mItemEditorWidget = new ItemEditorWidget(itemEditorContentWidget, this);
+		mItemEditorLayout = new QVBoxLayout(itemEditorContentWidget);
+		mItemEditorLayout->setContentsMargins(0, 0, 0, 0);
+		layout->addWidget(mItemEditorWidget);
+
+		updateListWidget();
+
+		// Connect signals and slots
+		QObject::connect(property, &QtProperty::valueChanged, this, [this]() {
+			updateListWidget();
+			});
+
+		QObject::connect(mListWidget, &QListWidget::itemSelectionChanged, this, [this] {
+			updateControlButtonsState();
+			updateEditorItem(getCurrentSelectedItem());
+			});
+
+		auto newItemProperty = std::make_shared<QtPropertyPtr>();
+
+		QObject::connect(mItemEditorWidget, &ItemEditorWidget::setCreateItemModeEnabledChanged, this, [this](bool enabled) {
+			mListEditorWidget->setEnabled(!enabled);
+			});
+
+		QObject::connect(mListEditorWidget, &ListEditorWidget::itemAddRequested, [this, newItemProperty]() {
+			if (!mProperty)
+			{
+				return;
+			}
+
+			clearLayout(*mItemEditorLayout);
+
+			QVariant defaultValue = mProperty->value().value<PropertyVector>().itemDefaultValue;
+			(*newItemProperty) = createQtProperty(/* displayName */"", defaultValue);
+
+			if (newItemProperty)
+			{
+				updateEditorItem(*newItemProperty);
+				mItemEditorWidget->setCreateItemModeEnabled(true);
+			}
+		});
+
+		QObject::connect(mItemEditorWidget, &ItemEditorWidget::createItemAccepted, [this,newItemProperty]() {
+			if (!mProperty)
+			{
+				return;
+			}
+
+			assert(newItemProperty);
+			auto propertyVector = mProperty->value().value<PropertyVector>();
+			propertyVector.items.push_back(*newItemProperty);
+			mProperty->setValue(QVariant::fromValue(propertyVector));
+			newItemProperty->reset();
+			mItemEditorWidget->setCreateItemModeEnabled(false);
+
+			updateEditorItem(nullptr);
+		});
+
+		QObject::connect(mItemEditorWidget, &ItemEditorWidget::createItemCancelled, [this,newItemProperty]() {
+				assert(newItemProperty);
+				newItemProperty->reset();
+				mItemEditorWidget->setCreateItemModeEnabled(false);
+
+				updateEditorItem(nullptr);
+			});
+
+		QObject::connect(mListEditorWidget, &ListEditorWidget::itemRemoveRequested, [this]() {
+			if (!mProperty)
+			{
+				return;
+			}
+
+			auto propertyVector = mProperty->value().value<PropertyVector>();
+			int row = mListWidget->currentRow();
+			if (row >= 0 && row < propertyVector.items.size())
+			{
+				propertyVector.items.erase(propertyVector.items.begin() + row);
+				mProperty->setValue(QVariant::fromValue(propertyVector));
+			}
+		});
+
+		QObject::connect(mListEditorWidget, &ListEditorWidget::itemMoveUpRequested, [this]() {
+			if (!mProperty)
+			{
+				return;
+			}
+
+			auto propertyVector = mProperty->value().value<PropertyVector>();
+			int row = mListWidget->currentRow();
+			if (row >= 1 && row < propertyVector.items.size())
+			{
+				std::swap(propertyVector.items[row - 1], propertyVector.items[row]);
+				mProperty->setValue(QVariant::fromValue(propertyVector));
+				mListWidget->setCurrentRow(row - 1);
+			}
+		});
+
+
+		QObject::connect(mListEditorWidget, &ListEditorWidget::itemMoveDownRequested, [this]() {
+			if (!mProperty)
+			{
+				return;
+			}
+
+			auto propertyVector = mProperty->value().value<PropertyVector>();
+			int row = mListWidget->currentRow();
+			if (row >= 0 && row + 1 < propertyVector.items.size())
+			{
+				std::swap(propertyVector.items[row], propertyVector.items[row + 1]);
+				mProperty->setValue(QVariant::fromValue(propertyVector));
+				mListWidget->setCurrentRow(row + 1);
+			}
+		});
+	}
+
+	void updateControlButtonsState()
+	{
+		int index = mListWidget->currentRow();
+		mListEditorWidget->setMoveUpEnabled(index > 0);
+		mListEditorWidget->setMoveDownEnabled((index >= 0) && (index + 1 < mListWidget->count()));
+		mListEditorWidget->setRemoveEnabled(index >= 0);
+	}
+
+	void updateListWidget()
+	{
+		if (!mProperty)
+		{
+			return;
+		}
+
+		QStringList newItems;
+		auto propertyVector = mProperty->value().value<PropertyVector>();
+		for (const auto& itemProperty : propertyVector.items)
+		{
+			newItems.push_back(itemProperty->displayName.isEmpty() ? itemProperty->value().toString() : itemProperty->displayName);
+		}
+
+		bool asdf = newItems != mPreviousItems;
+		bool bar = mPreviousItemProperties != propertyVector.items;
+		if (newItems != mPreviousItems || mPreviousItemProperties != propertyVector.items)
+		{
+			// Update UI state
+			int currentSelectedItem = mListWidget->currentRow(); // save selection before updating the list
+			mListWidget->clear();
+			mListWidget->addItems(newItems);
+			mListWidget->setCurrentRow(currentSelectedItem); // restore selection after updating the list
+			updateControlButtonsState();
+
+			// Remove old property connections
+			for (const auto& oldItemProperty : mPreviousItemProperties)
+			{
+				QObject::disconnect(oldItemProperty.get(), &QtProperty::valueChanged, mListWidget, nullptr);
+			}
+
+			// Connect new properties to trigger list widget updates when they change
+			for (const auto& itemProperty : propertyVector.items)
+			{
+				QObject::connect(itemProperty.get(), &QtProperty::valueChanged, mListWidget, [this]() {
+					updateListWidget();
+					});
+			}
+
+			mPreviousItemProperties = propertyVector.items;
+			mPreviousItems = newItems;
+		}
+
+		if (!mItemEditorWidget->isCreateItemModeEnabled())
+		{
+			updateEditorItem(getCurrentSelectedItem());
+		}
+	}
+
+	void updateEditorItem(const QtPropertyPtr& itemProperty)
+	{
+		if (itemProperty != mPreviousSelectedItemProperty)
+		{
+			clearLayout(*mItemEditorLayout);
+		}
+
+		if (itemProperty && itemProperty != mPreviousSelectedItemProperty)
+		{
+			if (QWidget* valueEditorWidget = mFactory(itemProperty.get(), this); valueEditorWidget)
+			{
+				mItemEditorLayout->addWidget(valueEditorWidget);
+			}
+		}
+
+		mPreviousSelectedItemProperty = itemProperty;
+	}
+
+	QtPropertyPtr getCurrentSelectedItem() const
+	{
+		if (!mProperty)
+		{
+			return nullptr;
+		}
+
+		QtPropertyPtr itemProperty;
+		auto propertyVector = mProperty->value().value<PropertyVector>();
+		int row = mListWidget->currentRow();
+		if (row >= 0 && row < propertyVector.items.size())
+		{
+			return propertyVector.items.at(row);
+		}
+		return nullptr;
+	}
+
+private:
+	PropertyEditorWidgetFactory mFactory;
+	QPointer<QtProperty> mProperty;
+	QListWidget* mListWidget;
+	ListEditorWidget* mListEditorWidget;
+	ItemEditorWidget* mItemEditorWidget;
+	QVBoxLayout* mItemEditorLayout;
+
+	QtPropertyPtr mPreviousSelectedItemProperty;
+	QStringList mPreviousItems;
+	std::vector<QtPropertyPtr> mPreviousItemProperties;
+};
+
 QWidget* createPropertyVectorEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, const ListEditorIcons& listEditorIcons, QWidget* parent)
 {
 	auto propertyVector = property->value().value<PropertyVector>();
 	if (auto i = factories.find(propertyVector.itemDefaultValue.userType()); i != factories.end())
 	{
-		auto widget = new QWidget(parent);
-		auto layout = new QVBoxLayout(widget);
-		layout->setContentsMargins(0,0,0,0);
-
-		auto listWidget = new QListWidget(parent);
-		layout->addWidget(listWidget);
-
-		auto listEditorWidget = new ListEditorWidget(listEditorIcons, parent);
-		layout->addWidget(listEditorWidget);
-
-		auto itemEditorContentWidget = new QWidget(parent);
-		auto itemEditorWidget = new ItemEditorWidget(itemEditorContentWidget, parent);
-		auto itemEditorLayout = new QVBoxLayout(itemEditorContentWidget);
-		itemEditorLayout->setContentsMargins(0, 0, 0, 0);
-		layout->addWidget(itemEditorWidget);
-
-		auto updateControlButtonsState = [listWidget, listEditorWidget]() {
-			int index = listWidget->currentRow();
-			listEditorWidget->setMoveUpEnabled(index > 0);
-			listEditorWidget->setMoveDownEnabled((index >= 0) && (index + 1 < listWidget->count()));
-			listEditorWidget->setRemoveEnabled(index >= 0);
-		};
-
-		auto updateListWidgetFunction = [property, listWidget, previousItems = QStringList(), updateControlButtonsState] () mutable {
-			QStringList newItems;
-			auto propertyVector = property->value().value<PropertyVector>();
-			for (const auto& itemProperty : propertyVector.items)
-			{
-				newItems.push_back(itemProperty->value().toString());
-			}
-
-			if (newItems != previousItems)
-			{
-				listWidget->clear();
-				listWidget->addItems(newItems);
-				previousItems = newItems;
-				updateControlButtonsState();
-			}
-		};
-
-		updateListWidgetFunction();
-		QObject::connect(property, &QtProperty::valueChanged, [listWidget, updateListWidgetFunction = std::move(updateListWidgetFunction)] () mutable {
-			updateListWidgetFunction();
-			});
-
-		QObject::connect(listWidget, &QListWidget::itemSelectionChanged, listEditorWidget, updateControlButtonsState);
-
-		auto newItemProperty = std::make_shared<QtPropertyPtr>();
-
-		QObject::connect(itemEditorWidget,&ItemEditorWidget::setCreateItemModeEnabledChanged, listEditorWidget, [listEditorWidget](bool enabled) {
-			listEditorWidget->setEnabled(!enabled);
-			});
-
-		QObject::connect(listEditorWidget, &ListEditorWidget::itemAddRequested, [
-			newItemProperty,
-			defaultValue = propertyVector.itemDefaultValue,
-			factory = i->second,
-			parent,
-			itemEditorLayout,
-			itemEditorWidget
-		]() {
-			(*newItemProperty) = createQtProperty("newItem", defaultValue);
-			QWidget* valueEditorWidget = factory(newItemProperty->get(), parent);
-			itemEditorLayout->addWidget(valueEditorWidget);
-			itemEditorWidget->setCreateItemModeEnabled(true);
-			});
-
-		QObject::connect(itemEditorWidget, &ItemEditorWidget::createItemAccepted, [
-			property,
-			newItemProperty,
-			itemEditorLayout
-		]() {
-			assert(newItemProperty);
-			auto propertyVector = property->value().value<PropertyVector>();
-			propertyVector.items.push_back(*newItemProperty);
-			property->setValue(QVariant::fromValue(propertyVector));
-			newItemProperty->reset();
-
-			clearLayout(*itemEditorLayout);
-			});
-
-		QObject::connect(itemEditorWidget, &ItemEditorWidget::createItemCancelled, [
-			property,
-				newItemProperty,
-				itemEditorLayout
-		]() {
-				assert(newItemProperty);
-				newItemProperty->reset();
-
-				clearLayout(*itemEditorLayout);
-			});
-
-		QObject::connect(listEditorWidget, &ListEditorWidget::itemRemoveRequested, [
-			property,
-			listWidget
-		]() {
-			auto propertyVector = property->value().value<PropertyVector>();
-			int row = listWidget->currentRow();
-			if (row >= 0 && row < propertyVector.items.size())
-			{
-				propertyVector.items.erase(propertyVector.items.begin() + row);
-				property->setValue(QVariant::fromValue(propertyVector));
-			}
-		});
-
-		QObject::connect(listEditorWidget, &ListEditorWidget::itemMoveUpRequested, [
-			property,
-			listWidget
-		]() {
-			auto propertyVector = property->value().value<PropertyVector>();
-			int row = listWidget->currentRow();
-			if (row >= 1 && row < propertyVector.items.size())
-			{
-				std::swap(propertyVector.items[row - 1], propertyVector.items[row]);
-				property->setValue(QVariant::fromValue(propertyVector));
-			}
-		});
-
-
-		QObject::connect(listEditorWidget, &ListEditorWidget::itemMoveDownRequested, [
-			property,
-			listWidget
-		]() {
-			auto propertyVector = property->value().value<PropertyVector>();
-			int row = listWidget->currentRow();
-			if (row >= 0 && row + 1 < propertyVector.items.size())
-			{
-				std::swap(propertyVector.items[row], propertyVector.items[row+1]);
-				property->setValue(QVariant::fromValue(propertyVector));
-			}
-		});
-
-		return widget;
+		return new PropertyVectorEditor(i->second, property, listEditorIcons, parent);
 	}
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 }
 
 template <typename KeyT, typename ValueT>

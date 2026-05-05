@@ -16,7 +16,7 @@ public:
 	ItemEditorWidget(QWidget* contentWidget, QWidget* parent = nullptr);
 
 public Q_SLOTS:
-	bool isCreateitemModelEnalbled() const;
+	bool isCreateItemModeEnabled() const;
 
 	void setCreateItemModeEnabled(bool enabled);
 
@@ -27,6 +27,7 @@ Q_SIGNALS:
 
 private:
 	QDialogButtonBox* mCreateItemButtonBox;
+	bool mCreateItemModeEnabled = false;
 };
 
 } // namespace skybolt

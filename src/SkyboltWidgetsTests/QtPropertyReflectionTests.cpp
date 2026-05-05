@@ -5,7 +5,8 @@
 
 #include <catch2/catch.hpp>
 #include <SkyboltReflect/Reflection.h>
-#include <SkyboltWidgets/Property/QtMetaTypes.h>
+#include <SkyboltWidgets/Property/ContainerProperties.h>
+#include <SkyboltWidgets/Property/QtPropertyReflection.h>
 #include <SkyboltWidgets/Property/QtPropertyReflectionConversion.h>
 
 using namespace skybolt;
