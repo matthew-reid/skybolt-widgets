@@ -73,7 +73,7 @@ void PropertyEditor::modelReset(PropertiesModel* model)
 			mLayout->addWidget(section);
 			gridLayout = new QGridLayout(contentWidget);
 		}
-		gridLayout->setColumnMinimumWidth(0, 100);
+		gridLayout->setColumnMinimumWidth(0, mLabelColumnMinWidth);
 		gridLayout->setColumnStretch(1, 1);
 
 		int rowCount = 0;

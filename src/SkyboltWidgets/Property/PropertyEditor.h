@@ -24,6 +24,8 @@ public:
 	void setModel(const PropertiesModelPtr& model);
 	PropertiesModelPtr getModel() const { return mModel; }
 
+	void setLabelColumnMinWidth(int minWidth) { mLabelColumnMinWidth = minWidth; }
+
 private slots:
 	void modelReset(PropertiesModel* model);
 
@@ -34,6 +36,7 @@ private:
 	PropertiesModelPtr mModel;
 	QVBoxLayout* mLayout;
 	PropertyEditorWidgetFactoryMapPtr mFactoryMap;
+	int mLabelColumnMinWidth = 20;
 
 	std::map<std::string, bool> mDefaultSectionExpandedState;
 };
