@@ -11,7 +11,7 @@
 
 namespace skybolt {
 
-using PropertyEditorWidgetFactory = std::function<QWidget*(QtProperty* property, QWidget* parent)>;
+using PropertyEditorWidgetFactory = std::function<QWidget*(QtValue* value, QWidget* parent)>;
 using QtMetaTypeId = int;
 using PropertyEditorWidgetFactoryMap = std::map<QtMetaTypeId, PropertyEditorWidgetFactory>;
 using PropertyEditorWidgetFactoryMapPtr = std::shared_ptr<PropertyEditorWidgetFactoryMap>;

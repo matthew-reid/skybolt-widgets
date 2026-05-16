@@ -69,7 +69,7 @@ static QWidget* createPropertyEditorPanel(QWidget* parent = nullptr)
 
 	// Bool property with toggle button representation
 	auto boolToggleProp = createQtProperty("Boolean", QVariant(true));
-	boolToggleProp->setProperty(QtPropertyMetadataKeys::representation, QtPropertyRepresentations::toggleButton);
+	boolToggleProp->value()->setProperty(QtPropertyMetadataKeys::representation, QtPropertyRepresentations::toggleButton);
 
 	// OptionalProperty example
 	

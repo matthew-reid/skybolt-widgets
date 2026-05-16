@@ -27,16 +27,7 @@ void SyncedListModel::updateItems()
 	// Make a complete list of items we want in the list
 	std::set<QString> newItems = mItemsGetter();
 
-	// Add new items
-	for (const QString& item : newItems)
-	{
-		if (mItems.find(item) == mItems.end())
-		{
-			insertRow(rowCount(), new QStandardItem(item));
-		}
-	}
-
-	// Remove old items
+	// Remove old items first to avoid brief duplicate entries
 	for (const QString& item : mItems)
 	{
 		if (newItems.find(item) == newItems.end())
@@ -47,6 +38,16 @@ void SyncedListModel::updateItems()
 			}
 		}
 	}
+
+	// Add new items
+	for (const QString& item : newItems)
+	{
+		if (mItems.find(item) == mItems.end())
+		{
+			insertRow(rowCount(), new QStandardItem(item));
+		}
+	}
+
 	std::swap(mItems, newItems);
 }
 

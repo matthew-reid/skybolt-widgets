@@ -11,6 +11,31 @@
 
 namespace skybolt {
 
+struct QtValue : public QObject
+{
+	Q_OBJECT
+public:
+	const QVariant& value() const { return mValue; }
+
+	void setValue(const QVariant& v)
+	{
+		if (mValue != v)
+		{
+			mValue = v;
+			emit valueChanged();
+		}
+	}
+
+
+signals:
+	void valueChanged();
+
+private:
+	QVariant mValue;
+};
+
+QtValuePtr createQtValue(const QVariant& value);
+
 struct QtProperty : public QObject
 {
 	Q_OBJECT
@@ -27,24 +52,14 @@ public:
 		}
 	}
 
-	const QVariant& value() const { return mValue; }
-
-	void setValue(const QVariant& v)
-	{
-		if (mValue != v)
-		{
-			mValue = v;
-			emit valueChanged();
-		}
-	}
-
+	//! Never null
+	const QtValuePtr& value() const { return mValue; }
 
 signals:
-	void valueChanged();
 	void enabledChanged(bool enabled);
 
 private:
-	QVariant mValue;
+	QtValuePtr mValue = createQtValue(QVariant{}); //!< never null
 };
 
 QtPropertyPtr createQtProperty(const QString& displayName, const QVariant& value);
@@ -64,8 +79,11 @@ public:
 
 	virtual SectionProperties getProperties() const { return mProperties; }
 
-	using QtPropertyUpdater = std::function<void(QtProperty&)> ;
-	using QtPropertyApplier = std::function<void(const QtProperty&)>;
+	struct QtValueUpdaterContext {};
+	using QtValueUpdater = std::function<void(QtValue&, const QtValueUpdaterContext& context)> ;
+
+	struct QtValueApplierContext {};
+	using QtValueApplier = std::function<void(const QtValue&, const QtValueApplierContext& context)>;
 
 	static const std::string& getDefaultSectionName()
 	{
@@ -75,14 +93,14 @@ public:
 
 	//! @param updater is regularly called update the value of QtProperty from an external model
 	//! @param applier is called when a QtProperty value should be applied to an external model (e.g. if the user pressent 'Enter' key in a text box
-	void addProperty(const QtPropertyPtr& property, QtPropertyUpdater updater = nullptr, QtPropertyApplier applier = nullptr, const std::string& sectionName = getDefaultSectionName());
+	void addProperty(const QtPropertyPtr& property, QtValueUpdater updater = nullptr, QtValueApplier applier = nullptr, const std::string& sectionName = getDefaultSectionName());
 
 signals:
 	void modelReset(PropertiesModel*);
 
 protected:
 	SectionProperties mProperties;
-	std::map<QtPropertyPtr, QtPropertyUpdater> mPropertyUpdaters;
+	std::map<QtPropertyPtr, QtValueUpdater> mPropertyUpdaters;
 	bool mCurrentlyUpdating = false;
 };
 

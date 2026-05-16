@@ -11,7 +11,7 @@ namespace skybolt {
 CollapsiblePanelWidget::CollapsiblePanelWidget(const QString& title, QWidget* contentWidget, QWidget* parent) :
     QWidget(parent),
     mContentWidget(contentWidget),
-    mToggleButton(new QToolButton)
+    mToggleButton(new QToolButton(this))
 {
     mToggleButton->setText(title);
     mToggleButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);

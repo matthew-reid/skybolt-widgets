@@ -7,27 +7,26 @@
 
 namespace skybolt {
 
-//! Holds an optional property, where the property may or may not be present (e.g. for std::optional properties)
-struct OptionalProperty
+//! Represents an optional value, where the property may or may not be present (e.g. for std::optional properties)
+struct QtOptionalValue
 {
-	QtPropertyPtr property;
+	QtValuePtr value = createQtValue(QVariant{}); //!< never null;
 	bool present = false;
 };
 
-//! Holds a vector of properties of the same type, along with the default value for new items added to the vector
-struct PropertyVector
+//! Represents a vector of properties of the same type, along with the default value for new items added to the vector
+struct QtVectorValue
 {
-	std::vector<QtPropertyPtr> items;
-	QVariant itemDefaultValue;
+	std::vector<QtValuePtr> items;
+
+	using ItemFactory = std::function<QtValuePtr()>;
+	ItemFactory itemFactory; //!< Factory function to create new item values, used when adding new items to the vector. Must not be null.
 };
 
-//! Holds a tuple of properties of different types.
-//! Conceptually, PropertyTuple differs from PropertyVector in that:
-//! 1) Properties cannot be added or removed from a PropertyTuple, as opposed to PropertyVector where items can be added or removed.
-//! 2) Properties in a PropertyTuple can be of different types, as opposed to PropertyVector where all items must be of the same type.
-struct PropertyTuple
+//! Represents a struct with of properties
+struct QtStructValue
 {
-	std::vector<QtPropertyPtr> items;
+	std::vector<QtPropertyPtr> items; //!< Items must not be null
 };
 
 QtPropertyPtr createOptionalQtProperty(const QString& displayName, const QVariant& optionalValue, bool present);
@@ -36,6 +35,6 @@ QtPropertyPtr createVectorQtProperty(const QString& displayName, const std::vect
 
 } // namespace skybolt
 
-Q_DECLARE_METATYPE(skybolt::OptionalProperty)
-Q_DECLARE_METATYPE(skybolt::PropertyVector)
-Q_DECLARE_METATYPE(skybolt::PropertyTuple)
+Q_DECLARE_METATYPE(skybolt::QtOptionalValue)
+Q_DECLARE_METATYPE(skybolt::QtVectorValue)
+Q_DECLARE_METATYPE(skybolt::QtStructValue)

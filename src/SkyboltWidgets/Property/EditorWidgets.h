@@ -30,10 +30,10 @@ private:
 	std::vector<QLineEdit*> mEditors;
 };
 
-class QVector3PropertyEditor : public DoubleVectorEditor
+class QVector3Editor : public DoubleVectorEditor
 {
 public:
-	QVector3PropertyEditor(QtProperty* property, const QStringList& componentLabels, QWidget* parent = nullptr);
+	QVector3Editor(QtValue* value, const QStringList& componentLabels, QWidget* parent = nullptr);
 
 protected:
 	void setValue(const QVector3D& value);
@@ -41,41 +41,41 @@ protected:
 	void componentEdited(int index, double value) override;
 
 private:
-	QtProperty* mProperty;
+	QtValue* mValue;
 };
 
 QLineEdit* createDoubleLineEdit(QWidget* parent = nullptr);
 
 QLineEdit* addDoubleEditor(QGridLayout& layout, const QString& name);
 
-QWidget* createComboStringEditor(QtProperty* property, QWidget* parent);
+QWidget* createComboStringEditor(QtValue* value, QWidget* parent);
 
-QWidget* createSingleLineStringEditor(QtProperty* property, QWidget* parent);
+QWidget* createSingleLineStringEditor(QtValue* value, QWidget* parent);
 
-QWidget* createMultiLineStringEditor(QtProperty* property, QWidget* parent);
+QWidget* createMultiLineStringEditor(QtValue* value, QWidget* parent);
 
-QWidget* createStringEditor(QtProperty* property, QWidget* parent);
+QWidget* createStringEditor(QtValue* value, QWidget* parent);
 
-QWidget* createIntEditor(QtProperty* property, QWidget* parent);
+QWidget* createIntEditor(QtValue* value, QWidget* parent);
 
-QWidget* createEnumEditor(QtProperty* property, QWidget* parent);
+QWidget* createEnumEditor(QtValue* value, QWidget* parent);
 
-bool shouldUseEnumEditor(const QtProperty& property);
+bool shouldUseEnumEditor(const QtValue& value);
 
-QWidget* createIntOrEnumEditor(QtProperty* property, QWidget* parent);
+QWidget* createIntOrEnumEditor(QtValue* value, QWidget* parent);
 
-QWidget* createDoubleEditor(QtProperty* property, QWidget* parent);
+QWidget* createDoubleEditor(QtValue* value, QWidget* parent);
 
-QWidget* createBoolEditor(QtProperty* property, QWidget* parent);
+QWidget* createBoolEditor(QtValue* value, QWidget* parent);
 
-QWidget* createDateTimeEditor(QtProperty* property, QWidget* parent);
+QWidget* createDateTimeEditor(QtValue* value, QWidget* parent);
 
-QWidget* createVector3DEditor(QtProperty* property, QWidget* parent);
+QWidget* createVector3DEditor(QtValue* value, QWidget* parent);
 
-QWidget* createOptionalVariantEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, QWidget* parent);
+QWidget* createOptionalVariantEditor(const PropertyEditorWidgetFactoryMap& factories, QtValue* value, QWidget* parent);
 
-QWidget* createPropertyVectorEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, const ListEditorIcons& listEditorIcons, QWidget* parent);
+QWidget* createVectorEditor(const PropertyEditorWidgetFactoryMap& factories, QtValue* value, const ListEditorIcons& listEditorIcons, QWidget* parent);
 
-QWidget* createPropertyTupleEditor(const PropertyEditorWidgetFactoryMap& factories, QtProperty* property, QWidget* parent);
+QWidget* createStructEditor(const PropertyEditorWidgetFactoryMap& factories, QtValue* value, QWidget* parent);
 
 } // namespace skybolt

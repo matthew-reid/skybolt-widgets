@@ -25,14 +25,12 @@ ListEditorIcons createDefaultListEditorIcons()
 ListEditorWidget::ListEditorWidget(const ListEditorIcons& icons, QWidget* parent) :
 	QWidget(parent)
 {
-	assert(itemEditorWidget);
-
 	auto mainLayout = new QVBoxLayout(this);
 	mainLayout->setContentsMargins(0, 0, 0, 0);
 
 	// Create list controls
 	{
-		mListControlsWidget = new QToolBar(parent);
+		mListControlsWidget = new QToolBar(this);
 		mainLayout->addWidget(mListControlsWidget);
 
 		mAddButton = new QToolButton(this);
@@ -40,7 +38,7 @@ ListEditorWidget::ListEditorWidget(const ListEditorIcons& icons, QWidget* parent
 		mAddButton->setText("Add");
 		mAddButton->setToolTip("Add");
 		mListControlsWidget->addWidget(mAddButton);
-		connect(mAddButton, &QAbstractButton::clicked, this, [this, mainLayout] {
+		connect(mAddButton, &QAbstractButton::clicked, this, [this] {
 			Q_EMIT itemAddRequested();
 			});
 

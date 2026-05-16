@@ -79,14 +79,14 @@ void PropertyEditor::modelReset(PropertiesModel* model)
 		int rowCount = 0;
 		for (const QtPropertyPtr& property : properties)
 		{
-			auto label = new QLabel(property->displayName, this);
-			auto labelLayout = new QVBoxLayout();
-			labelLayout->setContentsMargins(3, 3, 6, 3);
-			labelLayout->addWidget(label);
-			gridLayout->addLayout(labelLayout, rowCount, 0, Qt::AlignTop | Qt::AlignRight);
 			QWidget* widget = createEditor(property.get());
 			if (widget)
 			{
+				auto label = new QLabel(property->displayName, this);
+				auto labelLayout = new QVBoxLayout();
+				labelLayout->setContentsMargins(3, 3, 6, 3);
+				labelLayout->addWidget(label);
+				gridLayout->addLayout(labelLayout, rowCount, 0, Qt::AlignTop | Qt::AlignRight);
 				gridLayout->addWidget(widget, rowCount, 1);
 				++rowCount;
 			}
@@ -109,10 +109,10 @@ static void setEditable(QWidget& widget, bool editable)
 
 QWidget* PropertyEditor::createEditor(QtProperty* property)
 {
-	auto i = mFactoryMap->find(property->value().userType());
+	auto i = mFactoryMap->find(property->value()->value().userType());
 	if (i != mFactoryMap->end())
 	{
-		if (QWidget* widget = i->second(property, this); widget)
+		if (QWidget* widget = i->second(property->value().get(), this); widget)
 		{
 			setEditable(*widget, property->enabled);
 

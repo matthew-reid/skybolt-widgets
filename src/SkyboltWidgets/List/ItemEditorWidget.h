@@ -15,9 +15,9 @@ class ItemEditorWidget : public QWidget
 public:
 	ItemEditorWidget(QWidget* contentWidget, QWidget* parent = nullptr);
 
-public Q_SLOTS:
 	bool isCreateItemModeEnabled() const;
 
+public Q_SLOTS:
 	void setCreateItemModeEnabled(bool enabled);
 
 Q_SIGNALS:

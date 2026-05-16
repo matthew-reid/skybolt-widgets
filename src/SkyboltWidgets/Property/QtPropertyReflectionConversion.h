@@ -9,350 +9,177 @@
 
 #ifdef BUILD_WITH_SKYBOLT_REFLECT
 
+Q_DECLARE_METATYPE(std::any);
+
 namespace skybolt {
 
 template <typename ReflValueT>
-inline QVariant reflValueToQt(const refl::Property& property, const ReflValueT& value)
+inline QVariant reflValueToQt(const ReflValueT& value)
 {
 	return QVariant::fromValue(value);
 }
 
 template <typename ReflValueT>
-inline ReflValueT qtValueToRefl(const refl::Property& property, const QVariant& value)
+inline ReflValueT qtValueToRefl(const QVariant& value)
 {
 	return value.value<ReflValueT>();
 }
 
 template <>
-inline QVariant reflValueToQt(const refl::Property& property, const std::string& value)
+inline QVariant reflValueToQt(const std::string& value)
 {
 	return QString::fromStdString(value);
 }
 
 template <>
-inline std::string qtValueToRefl(const refl::Property& property, const QVariant& value)
+inline std::string qtValueToRefl(const QVariant& value)
 {
 	return value.toString().toStdString();
 }
 
 template <typename ReflValueT>
-QVariant valueInstanceToQt(const refl::Property& property, const refl::Instance& valueInstance)
+QVariant valueInstanceToQt(const refl::Instance& valueInstance)
 {
-	if constexpr (std::is_same_v<ReflValueT, ReflPropertyInstanceVariant>)
+	if constexpr (std::is_same_v<ReflValueT, ReflInstanceVariant>)
 	{
-		return QVariant::fromValue(ReflPropertyInstanceVariant{ valueInstance });
+		return QVariant::fromValue(ReflInstanceVariant{ valueInstance });
 	}
 	else
 	{
 		const ReflValueT& value = valueInstance.cast<ReflValueT>();
-		return reflValueToQt(property, value);
+		return reflValueToQt(value);
 	}
 }
 
 template <typename ReflValueT>
-std::optional<refl::Instance> qtToValueInstance(const refl::Property& property, refl::TypeRegistry& typeRegistry, const QVariant value, const QVariant& defaultValue)
+std::optional<refl::Instance> qtToValueInstance(refl::TypeRegistry& typeRegistry, const QVariant value, const QVariant& defaultValue)
 {
-	if constexpr (std::is_same_v<ReflValueT, ReflPropertyInstanceVariant>)
+	if constexpr (std::is_same_v<ReflValueT, ReflInstanceVariant>)
 	{
-		std::optional<refl::Instance> optionalValueInstance = value.value<ReflPropertyInstanceVariant>().instance;
+		std::optional<refl::Instance> optionalValueInstance = value.value<ReflInstanceVariant>().instance;
 		if (!optionalValueInstance)
 		{
-			optionalValueInstance = defaultValue.value<ReflPropertyInstanceVariant>().instance;
+			optionalValueInstance = defaultValue.value<ReflInstanceVariant>().instance;
 		}
 		return optionalValueInstance;
 	}
 	else
 	{
-		ReflValueT reflValue = qtValueToRefl<ReflValueT>(property, value);
+		ReflValueT reflValue = qtValueToRefl<ReflValueT>(value);
 		return refl::makeValueInstance(typeRegistry, reflValue);
 	}
 }
 
-template <typename T>
-void setQtPropertyMetadata(QtProperty& qtProperty, const refl::Property& reflProperty, const std::string& key)
+inline void addMetadata(QObject& qtObject, const refl::Property& reflProperty)
 {
-	if (auto value = reflProperty.getMetadata(key); value.has_value())
+	for (const auto& [key, value] : reflProperty.getMetadataMap())
 	{
-		T qtValue;
-		if constexpr (std::is_same_v<T, QStringList>)
+		QVariant qtValue;
+		if (value.type() == typeid(const char*))
 		{
-			// Special case for std::vector<std::string> to convert to QStringList
+			auto cstr = std::any_cast<const char*>(value);
+			qtValue = QString(cstr);
+		}
+		else if (value.type() == typeid(std::string))
+		{
+			qtValue = QString::fromStdString(std::any_cast<std::string>(value));
+		}
+		else if (value.type() == typeid(QString))
+		{
+			qtValue = std::any_cast<QString>(value);
+		}
+		else if (value.type() == typeid(bool))
+		{
+			qtValue = std::any_cast<bool>(value);
+		}
+		else if (value.type() == typeid(std::vector<std::string>))
+		{
 			qtValue = toQStringList(std::any_cast<std::vector<std::string>>(value));
 		}
 		else
 		{
-			qtValue = std::any_cast<T>(value);
+			// For other types, we fall back to storing the std::any directly as a QVariant using the registered metatype
+			qtValue = QVariant::fromValue(value);
 		}
-		qtProperty.setProperty(key.c_str(), qtValue);
+		qtObject.setProperty(key.c_str(), qtValue);
 	}
 }
 
-inline void addMetadata(QtProperty& qtProperty, const refl::Property& reflProperty)
-{
-	setQtPropertyMetadata<const char*>(qtProperty, reflProperty, QtPropertyMetadataKeys::representation);
-	setQtPropertyMetadata<bool>(qtProperty, reflProperty, QtPropertyMetadataKeys::multiLine);
-	setQtPropertyMetadata<QStringList>(qtProperty, reflProperty, QtPropertyMetadataKeys::optionNames);
-	setQtPropertyMetadata<bool>(qtProperty, reflProperty, QtPropertyMetadataKeys::allowCustomOptions);
-}
-
-template <typename ReflValueT, typename QtValueT>
-QtPropertyUpdaterApplier createValueProperty(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const QtValueT& defaultValue)
-{
-	QString displayName = QString::fromStdString(property->getName());
-	QVariant defaultValueVariant = QVariant::fromValue(defaultValue);
-
-	QtPropertyUpdaterApplier r;
-	r.property = createQtProperty(displayName, defaultValueVariant);
-	r.property->enabled = !property->isReadOnly();
-	addMetadata(*r.property, *property);
-		
-	r.updater = [instanceGetter, property] (QtProperty& qtProperty) {
-		if (const auto& objectInstance = instanceGetter(); objectInstance)
-		{
-			refl::Instance valueInstance = property->getValue(*objectInstance);
-			qtProperty.setValue(valueInstanceToQt<ReflValueT>(*property, valueInstance));
-		}
-	};
-	r.updater(*r.property);
-
-	if (!property->isReadOnly())
-	{
-		r.applier = [typeRegistry = &typeRegistry, instanceGetter, property, defaultValueVariant] (const QtProperty& qtProperty) {
-			if (auto objectInstance = instanceGetter(); objectInstance)
-			{
-				std::optional<refl::Instance> valueInstance = qtToValueInstance<ReflValueT>(*property, *typeRegistry, qtProperty.value(), defaultValueVariant);
-				if (valueInstance)
-				{
-					property->setValue(*objectInstance, *valueInstance);
-				}
-			}
-		};
-	}
-
-	return r;
-}
-
-inline std::optional<refl::Instance> getOptionalValue(refl::TypeRegistry& registry, const refl::Instance& optionalInstance)
-{
-	auto accessor = optionalInstance.getType()->getContainerValueAccessor();
-	if (!accessor) { return std::nullopt; }
-
-	auto values = accessor->getValues(registry, optionalInstance);
-	return values.empty() ? std::optional<refl::Instance>() : values.front();
-}
-
-inline void setOptionalValue(refl::Instance& optionalInstance, const std::optional<refl::Instance>& value)
-{
-	auto accessor = optionalInstance.getType()->getContainerValueAccessor();
-	if (!accessor) { return; }
-
-	accessor->setValues(optionalInstance, value ? std::vector<refl::Instance>({*value}) : std::vector<refl::Instance>());
-}
-
-template <typename ReflValueT, typename QtValueT>
-QtPropertyUpdaterApplier createOptionalValueProperty(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const QtValueT& defaultValue)
-{
-	QString displayName = QString::fromStdString(property->getName());
-	QVariant defaultValueVariant = QVariant::fromValue(defaultValue);
-	QtPropertyPtr childProperty = createQtProperty(displayName, defaultValueVariant);
-	addMetadata(*childProperty, *property);
-
-	OptionalProperty optionalProperty;
-	optionalProperty.property = childProperty;
-
-	QtPropertyUpdaterApplier r;
-	r.property = createQtProperty(displayName, QVariant::fromValue(optionalProperty));
-	r.property->enabled = !property->isReadOnly();
-
-	auto propagateChangeSignalToParent = std::make_shared<bool>(true);
-	QObject::connect(childProperty.get(), &QtProperty::valueChanged, r.property.get(), [propagateChangeSignalToParent, parentProperty = r.property.get()] {
-		if (*propagateChangeSignalToParent) { parentProperty->valueChanged(); }
-		});
-
-	r.updater = [typeRegistry = &typeRegistry, instanceGetter, property, propagateChangeSignalToParent] (QtProperty& qtProperty) {
-		if (const auto& objectInstance = instanceGetter(); objectInstance)
-		{
-			refl::Instance optionalInstance = property->getValue(*objectInstance);
-			std::optional<refl::Instance> valueInstance = getOptionalValue(*typeRegistry, optionalInstance);
-
-			OptionalProperty optionalProperty = qtProperty.value().value<OptionalProperty>();
-
-			if (valueInstance)
-			{
-				// Update the child property without propagating update signal to parent
-				// to avoid unnecessary update, as we will be updating the parent after.
-				*propagateChangeSignalToParent = false;
-				QVariant qtValue = valueInstanceToQt<ReflValueT>(*property, *valueInstance);
-				optionalProperty.property->setValue(qtValue);
-				*propagateChangeSignalToParent = true;
-			}
-
-			optionalProperty.present = valueInstance.has_value();
-			qtProperty.setValue(QVariant::fromValue(optionalProperty));
-		}
-	};
-	r.updater(*r.property);
-
-	if (!property->isReadOnly())
-	{
-		r.applier = [typeRegistry = &typeRegistry, instanceGetter, property, defaultValue] (const QtProperty& qtProperty) {
-			if (auto objectInstance = instanceGetter(); objectInstance)
-			{
-				std::optional<refl::Instance> valueInstance;
-
-				OptionalProperty optionalProperty = qtProperty.value().value<OptionalProperty>();
-				if (optionalProperty.present)
-				{
-					assert(optionalProperty.property);
-					valueInstance = qtToValueInstance<ReflValueT>(*property, *typeRegistry, optionalProperty.property->value(), defaultValue);
-				}
-					
-				refl::Instance optionalInstance = property->getValue(*objectInstance);
-				setOptionalValue(optionalInstance, valueInstance);
-				property->setValue(*objectInstance, optionalInstance);
-			}
-		};
-	}
-
-	return r;
-}
-
-inline std::vector<refl::Instance> getVectorValues(refl::TypeRegistry& registry, const refl::Instance& vectorInstance)
-{
-	auto accessor = vectorInstance.getType()->getContainerValueAccessor();
-	if (!accessor) { return {}; }
-
-	return accessor->getValues(registry, vectorInstance);
-}
-
-inline void setVectorValues(refl::Instance& vectorInstance, const std::vector<refl::Instance>& values)
-{
-	auto accessor = vectorInstance.getType()->getContainerValueAccessor();
-	if (!accessor) { return; }
-
-	accessor->setValues(vectorInstance, values);
-}
-
-using ItemDisplayNameRenderer = std::function<QString(const refl::Instance& reflValue, const QVariant& qtValue)>;
+using DisplayNameRenderer = std::function<QString(const refl::Instance& reflValue, const QVariant& qtValue)>;
 inline QString renderItemDisplayNameDefault(const refl::Instance& reflValue, const QVariant& qtValue)
 {
 	return qtValue.toString();
 }
 
-template <typename ReflValueT, typename QtValueT>
-QtPropertyUpdaterApplier createVectorValueProperty(refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property, const QtValueT& defaultValue, const ItemDisplayNameRenderer& itemDisplayNameRenderer = &renderItemDisplayNameDefault)
+struct ReflQtValueUpdaterContext : PropertiesModel::QtValueUpdaterContext
 {
-	QString name = QString::fromStdString(property->getName());
-	QVariant defaultValueVariant = QVariant::fromValue(defaultValue);
+	refl::TypeRegistry& typeRegistry;
+	const refl::Instance& instance;
+};
 
-	PropertyVector propertyVector;
-	propertyVector.itemDefaultValue = defaultValueVariant;
+template <typename ReflValueT, typename QtValueT>
+void updateQtValueFromRefl(QtValue& qtValue, const PropertiesModel::QtValueUpdaterContext& context)
+{
+	const auto& reflContext = static_cast<const ReflQtValueUpdaterContext&>(context);
+	qtValue.setValue(valueInstanceToQt<ReflValueT>(reflContext.instance));
+}
 
-	QtPropertyUpdaterApplier r;
-	r.property = createQtProperty(name, QVariant::fromValue(propertyVector));
-	r.property->enabled = !property->isReadOnly();
+template <typename ReflValueT, typename QtValueT>
+void updateQtValueFromReflWithDisplayName(QtValue& qtValue, const PropertiesModel::QtValueUpdaterContext& context, const DisplayNameRenderer& displayNameRenderer)
+{
+	const auto& reflContext = static_cast<const ReflQtValueUpdaterContext&>(context);
+	qtValue.setValue(valueInstanceToQt<ReflValueT>(reflContext.instance));
+	qtValue.setProperty(QtPropertyMetadataKeys::displayName, displayNameRenderer(reflContext.instance, qtValue.value()));
+}
 
-	r.updater = [typeRegistry = &typeRegistry, instanceGetter, property, itemDisplayNameRenderer](QtProperty& qtProperty) {
-		if (const auto& objectInstance = instanceGetter(); objectInstance)
-		{
-			refl::Instance vectorInstance = property->getValue(*objectInstance);
-			std::vector<refl::Instance> valueInstances = getVectorValues(*typeRegistry, vectorInstance);
+struct ReflQtValueApplierContext : PropertiesModel::QtValueApplierContext
+{
+	refl::TypeRegistry& typeRegistry;
+	refl::Instance& instance; //!< existing instance, if amy
+	ReflInstanceSetter instanceSetter; //!< function to set the instance to a new value
+};
 
-			PropertyVector propertyVector = qtProperty.value().value<PropertyVector>();
-			propertyVector.items.resize(valueInstances.size());
-			
-			int i = 0;
-			for (const auto& valueInstance : valueInstances)
-			{
-				QVariant qtValue = valueInstanceToQt<ReflValueT>(*property, valueInstance);
-				QString displayName = itemDisplayNameRenderer(valueInstance, qtValue);
-
-				QtPropertyPtr& itemProperty = propertyVector.items[i];
-				// Create new item property if it doesn't exist, otherwise we will just update the value of the existing item property.
-				if (!itemProperty)
-				{
-					itemProperty = createQtProperty(displayName, qtValue);
-					addMetadata(*itemProperty, *property);
-				}
-				else
-				{
-					itemProperty->setValue(qtValue);
-					itemProperty->displayName = displayName;
-				}
-				// Ensure the item property change signal is connected to its parent vector property so that when an item property changes, the parent vector property will be notified and can apply the change to the reflected instance.
-				QObject::connect(itemProperty.get(), &QtProperty::valueChanged, &qtProperty, &QtProperty::valueChanged, Qt::UniqueConnection);
-
-				++i;
-			}
-
-			qtProperty.setValue(QVariant::fromValue(propertyVector));
-		}
-	};
-	r.updater(*r.property);
-
-	if (!property->isReadOnly())
+template <typename ReflValueT, typename QtValueT>
+void applyQtValueToRefl(const QtValue& qtValue, const PropertiesModel::QtValueApplierContext& context)
+{
+	const auto& reflContext = static_cast<const ReflQtValueApplierContext&>(context);
+	std::optional<refl::Instance> valueInstance = qtToValueInstance<ReflValueT>(reflContext.typeRegistry, qtValue.value(), QtValueT{});
+	if (valueInstance)
 	{
-		r.applier = [typeRegistry = &typeRegistry, instanceGetter, property, defaultValueVariant](const QtProperty& qtProperty) {
-			if (auto objectInstance = instanceGetter(); objectInstance)
-			{
-				PropertyVector propertyVector = qtProperty.value().value<PropertyVector>();
-
-				std::vector<refl::Instance> valueInstances;
-				valueInstances.reserve(propertyVector.items.size());
-
-				for (const auto& valueProperty : propertyVector.items)
-				{
-					assert(valueProperty);
-					std::optional<refl::Instance> valueInstance = qtToValueInstance<ReflValueT>(*property, *typeRegistry, valueProperty->value(), defaultValueVariant);
-					if (valueInstance)
-					{
-						valueInstances.push_back(*valueInstance);
-					}
-				}
-
-				refl::Instance vectorInstance = property->getValue(*objectInstance);
-				setVectorValues(vectorInstance, valueInstances);
-				property->setValue(*objectInstance, vectorInstance);
-			}
-		};
+		reflContext.instanceSetter(*valueInstance);
 	}
+}
 
+template <typename ReflValueT, typename QtValueT>
+QtValueTranslator createReflValueTranslator()
+{
+	QtValueTranslator r;
+	r.updater = &updateQtValueFromRefl<ReflValueT, QtValueT>;
+	r.applier = &applyQtValueToRefl<ReflValueT, QtValueT>;
 	return r;
 }
 
 template <typename ReflValueT, typename QtValueT>
-PropertyFactory createPropertyFactory(const QtValueT& defaultValue, const ItemDisplayNameRenderer& itemDisplayNameRenderer = &renderItemDisplayNameDefault)
+QtValueTranslator createReflValueTranslatorWithDisplayName(DisplayNameRenderer displayNameRenderer)
 {
-	return [defaultValue, itemDisplayNameRenderer] (refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const refl::PropertyPtr& property) {
-		refl::TypePtr type = property->getType();
-		auto accessor = type->getContainerValueAccessor();
-		
-		if (accessor)
-		{
-			if (auto optionalValueAccessor = dynamic_cast<refl::StdOptionalValueAccessor*>(accessor.get()); optionalValueAccessor)
-			{
-				 return createOptionalValueProperty<ReflValueT, QtValueT>(typeRegistry, instanceGetter, property, defaultValue);
-			}
-			else if (auto vectorValueAccessor = dynamic_cast<refl::StdVectorValueAccessor*>(accessor.get()); vectorValueAccessor)
-			{
-				return createVectorValueProperty<ReflValueT, QtValueT>(typeRegistry, instanceGetter, property, defaultValue, itemDisplayNameRenderer);
-			}
-		}
-
-		return createValueProperty<ReflValueT, QtValueT>(typeRegistry, instanceGetter, property, defaultValue);
+	QtValueTranslator r;
+	r.updater = [displayNameRenderer = std::move(displayNameRenderer)](QtValue& qtValue, const PropertiesModel::QtValueUpdaterContext& context) {
+		updateQtValueFromReflWithDisplayName<ReflValueT, QtValueT>(qtValue, context, displayNameRenderer);
 	};
+	r.applier = &applyQtValueToRefl<ReflValueT, QtValueT>;
+	return r;
 }
 
-inline ReflTypePropertyFactoryMap createDefaultReflTypePropertyFactories(skybolt::refl::TypeRegistry& typeRegistry)
+inline ReflValueTranslatorMap createDefaultReflValueTranslators(skybolt::refl::TypeRegistry& typeRegistry)
 {
-	std::map<refl::TypePtr, PropertyFactory> typePropertyFactories = {
-		{ typeRegistry.getOrCreateType<std::string>(), createPropertyFactory<std::string>(QString()) },
-		{ typeRegistry.getOrCreateType<bool>(), createPropertyFactory<bool>(false) },
-		{ typeRegistry.getOrCreateType<int>(), createPropertyFactory<int>(0) },
-		{ typeRegistry.getOrCreateType<float>(), createPropertyFactory<float>(0.f) },
-		{ typeRegistry.getOrCreateType<double>(), createPropertyFactory<double>(0.0) }
+	std::map<refl::TypePtr, QtValueTranslator> translators = {
+		{ typeRegistry.getOrCreateType<std::string>(), createReflValueTranslator<std::string, QString>() },
+		{ typeRegistry.getOrCreateType<bool>(), createReflValueTranslator<bool, bool>() },
+		{ typeRegistry.getOrCreateType<int>(), createReflValueTranslator<int, int>() },
+		{ typeRegistry.getOrCreateType<float>(), createReflValueTranslator<float, float>() },
+		{ typeRegistry.getOrCreateType<double>(), createReflValueTranslator<double, double>() }
 	};
-	return typePropertyFactories;
+	return translators;
 }
 
 } // namespace skybolt

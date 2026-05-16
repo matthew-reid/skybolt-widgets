@@ -94,7 +94,7 @@ void TimeRateDialog::setRate(double rate)
 void addTimeRateDialogToToolBar(TimeRateDialog* timeRateDialog, QToolBar* toolBar, const QIcon& icon)
 {
 	assert(timeRateDialog);
-	assert(timeControlWidget);
+	assert(toolBar);
 
 	auto rateAction = new QAction(icon, QObject::tr("Rate"), toolBar);
 	toolBar->addAction(rateAction);
@@ -108,7 +108,7 @@ void addTimeRateDialogToToolBar(TimeRateDialog* timeRateDialog, QToolBar* toolBa
 
 			QObject::connect(timeRateDialog, &TimeRateDialog::closed, timeRateDialog, [timeRateDialog] {
 				timeRateDialog->hide();
-			});
+			}, Qt::UniqueConnection);
 		}		
 	});
 }

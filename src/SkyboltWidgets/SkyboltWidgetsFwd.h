@@ -16,12 +16,14 @@ class ListEditorWidget;
 class PropertyEditor;
 class PropertiesModel;
 struct QtProperty;
+struct QtValue;
 class RecentFilesMenuPopulator;
 class TreeItem;
 class TreeItemModel;
 
 using PropertiesModelPtr = std::shared_ptr<PropertiesModel>;
 using QtPropertyPtr = std::shared_ptr<QtProperty>;
+using QtValuePtr = std::shared_ptr<QtValue>;
 using TreeItemPtr = std::shared_ptr<TreeItem>;
 
 } // namespace skybolt

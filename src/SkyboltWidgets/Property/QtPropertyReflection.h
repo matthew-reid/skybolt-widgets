@@ -14,34 +14,42 @@
 
 namespace skybolt {
 
-struct QtPropertyUpdaterApplier
+struct QtValueTranslator
 {
-	QtPropertyPtr property; //!< Never null
-	PropertiesModel::QtPropertyUpdater updater; //!< Never null
-	PropertiesModel::QtPropertyApplier applier; //!< Null for read-only properties
+	PropertiesModel::QtValueUpdater updater; //!< Never null
+	PropertiesModel::QtValueApplier applier; //!< Never null
 };
 
-struct ReflPropertyInstanceVariant
+struct ReflInstanceVariant
 {
 	std::optional<skybolt::refl::Instance> instance;
 };
 
 using ReflInstanceGetter = std::function<std::optional<skybolt::refl::Instance>()>;
+using ReflInstanceSetter = std::function<void(const skybolt::refl::Instance&)>;
 
-using PropertyFactory = std::function<QtPropertyUpdaterApplier(skybolt::refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const skybolt::refl::PropertyPtr& property)>;
-using ReflTypePropertyFactoryMap = std::map<skybolt::refl::TypePtr, PropertyFactory>;
-using ReflTypePropertyFactoryMapPtr = std::shared_ptr<ReflTypePropertyFactoryMap>;
+//! @param instanceSetter is null for read-only properties
+using ReflValueTranslatorMap = std::map<skybolt::refl::TypePtr, QtValueTranslator>;
+using ReflValueTranslatorMapPtr = std::shared_ptr<ReflValueTranslatorMap>;
 
-std::optional<QtPropertyUpdaterApplier> reflPropertyToQt(skybolt::refl::TypeRegistry& typeRegistry, const ReflInstanceGetter& instanceGetter, const skybolt::refl::PropertyPtr& property, const ReflTypePropertyFactoryMap& typePropertyFactories);
+bool reflStructToQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueUpdaterContext& valueUpdaterContext, QtValue& value);
+bool reflStructFromQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueApplierContext& valueApplierContext, const QtValue& value);
 
-void addReflPropertiesToModel(skybolt::refl::TypeRegistry& typeRegistry, PropertiesModel& model, const std::vector<skybolt::refl::PropertyPtr>& properties, const ReflInstanceGetter& instanceGetter, const ReflTypePropertyFactoryMap& typePropertyFactories);
+bool reflOptionalValueToQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueUpdaterContext& valueUpdaterContext, QtValue& value);
+bool reflOptionalValueFromQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueApplierContext& valueApplierContext, const QtValue& value);
 
-QWidget* createReflPropertyInstanceEditor(QtProperty* property, QWidget* parent, skybolt::refl::TypeRegistry* typeRegistry, const ReflTypePropertyFactoryMap& typePropertyFactories, const PropertyEditorWidgetFactoryMapPtr& factoryMap);
+bool reflVectorValueToQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueUpdaterContext& valueUpdaterContext, QtValue& value);
+bool reflVectorValueFromQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueApplierContext& valueApplierContext, const QtValue& value);
 
-void addReflEditorsToFactoryMap(PropertyEditorWidgetFactoryMap& m, skybolt::refl::TypeRegistry* typeRegistry, const ReflTypePropertyFactoryMapPtr& typePropertyFactories, const PropertyEditorWidgetFactoryMapPtr& factoryMap);
+bool reflValueToQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueUpdaterContext& valueUpdaterContext, QtValue& value);
+bool reflValueFromQt(const refl::TypePtr& type, const ReflValueTranslatorMap& valueTranslators, const PropertiesModel::QtValueApplierContext& valueApplierContext, const QtValue& value);
+
+void addReflPropertiesToModel(skybolt::refl::TypeRegistry& typeRegistry, PropertiesModel& model, const std::vector<skybolt::refl::PropertyPtr>& properties, const ReflInstanceGetter& instanceGetter, const ReflValueTranslatorMap& valueTranslators);
+
+QWidget* createReflValueInstanceEditor(QtValue* value, QWidget* parent, refl::TypeRegistry* typeRegistry, const ReflValueTranslatorMap& valueTranslators, const PropertyEditorWidgetFactoryMapPtr& factoryMap);
 
 } // namespace skybolt
 
-Q_DECLARE_METATYPE(skybolt::ReflPropertyInstanceVariant);
+Q_DECLARE_METATYPE(skybolt::ReflInstanceVariant);
 
 #endif // BUILD_WITH_SKYBOLT_REFLECT

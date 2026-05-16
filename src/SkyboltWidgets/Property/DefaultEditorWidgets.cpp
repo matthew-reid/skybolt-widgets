@@ -26,14 +26,14 @@ std::unique_ptr<PropertyEditorWidgetFactoryMap> createDefaultEditorWidgetFactory
 	// stored inside the map which means the lifetime of the raw pointer is tied to the map.
 	// See https://stackoverflow.com/questions/62132659/does-stdmove-invalidate-a-raw-pointer-obtained-from-unique-ptrget
 
-	(*m)[qMetaTypeId<OptionalProperty>()] = [factories = m.get()] (QtProperty* property, QWidget* parent) {
-		return createOptionalVariantEditor(*factories, property, parent);
+	(*m)[qMetaTypeId<QtOptionalValue>()] = [factories = m.get()] (QtValue* value, QWidget* parent) {
+		return createOptionalVariantEditor(*factories, value, parent);
 	};
-	(*m)[qMetaTypeId<PropertyVector>()] = [factories = m.get(), listEditorIcons = config.listEditorIcons](QtProperty* property, QWidget* parent) {
-		return createPropertyVectorEditor(*factories, property, listEditorIcons, parent);
+	(*m)[qMetaTypeId<QtVectorValue>()] = [factories = m.get(), listEditorIcons = config.listEditorIcons](QtValue* value, QWidget* parent) {
+		return createVectorEditor(*factories, value, listEditorIcons, parent);
 	};
-	(*m)[qMetaTypeId<PropertyTuple>()] = [factories = m.get()](QtProperty* property, QWidget* parent) {
-		return createPropertyTupleEditor(*factories, property, parent);
+	(*m)[qMetaTypeId<QtStructValue>()] = [factories = m.get()](QtValue* value, QWidget* parent) {
+		return createStructEditor(*factories, value, parent);
 	};
 	return m;
 }

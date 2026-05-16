@@ -8,11 +8,18 @@
 
 namespace skybolt {
 
+QtValuePtr createQtValue(const QVariant& value)
+{
+	auto qtValue = std::make_shared<QtValue>();
+	qtValue->setValue(value);
+	return qtValue;
+}
+
 QtPropertyPtr createQtProperty(const QString& displayName, const QVariant& value)
 {
 	auto property = std::make_shared<QtProperty>();
 	property->displayName = displayName;
-	property->setValue(value);
+	property->value()->setValue(value);
 	return property;
 }
 
@@ -25,11 +32,11 @@ void PropertiesModel::update()
 
 	for (const auto& entry : mPropertyUpdaters)
 	{
-		entry.second(*entry.first);
+		entry.second(*entry.first->value(), {});
 	}
 }
 
-void PropertiesModel::addProperty(const QtPropertyPtr& property, QtPropertyUpdater updater, QtPropertyApplier applier, const std::string& sectionName)
+void PropertiesModel::addProperty(const QtPropertyPtr& property, QtValueUpdater updater, QtValueApplier applier, const std::string& sectionName)
 {
 	mProperties[sectionName].push_back(property);
 	if (updater)
@@ -39,10 +46,10 @@ void PropertiesModel::addProperty(const QtPropertyPtr& property, QtPropertyUpdat
 
 	if (applier)
 	{
-		connect(property.get(), &QtProperty::valueChanged, this, [=]() {
+		connect(property->value().get(), &QtValue::valueChanged, this, [=]() {
 			if (!mCurrentlyUpdating)
 			{
-				applier(*property);
+				applier(*property->value(), {});
 			}
 		});
 	}
