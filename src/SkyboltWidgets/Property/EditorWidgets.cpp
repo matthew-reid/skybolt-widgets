@@ -75,13 +75,13 @@ void QVector3Editor::componentEdited(int index, double value)
 	mValue->setValue(vec);
 }
 
-
-QLineEdit* createDoubleLineEdit(QWidget* parent)
+QLineEdit* createDoubleLineEdit(QWidget* parent, int decimalCount)
 {
 	QLineEdit* editor = new QLineEdit(parent);
 
 	QDoubleValidator* validator = new QDoubleValidator();
-	validator->setNotation(QDoubleValidator::StandardNotation);
+	validator->setNotation(QDoubleValidator::ScientificNotation);
+	validator->setDecimals(decimalCount);
 	editor->setValidator(validator);
 
 	return editor;
@@ -244,10 +244,11 @@ QWidget* createIntOrEnumEditor(QtValue* value, QWidget* parent)
 
 QWidget* createDoubleEditor(QtValue* value, QWidget* parent)
 {
-	QLineEdit* widget = createDoubleLineEdit(parent);
+	constexpr int decimalCount = 9;
+	QLineEdit* widget = createDoubleLineEdit(parent, decimalCount);
 
 	auto widgetTextSetter = [widget](double value) {
-		widget->setText(QString::number(value, 'f', 4));
+		widget->setText(QString::number(value, 'g', decimalCount));
 	};
 	widgetTextSetter(value->value().toDouble());
 

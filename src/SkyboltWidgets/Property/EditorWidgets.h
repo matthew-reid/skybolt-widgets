@@ -44,7 +44,7 @@ private:
 	QtValue* mValue;
 };
 
-QLineEdit* createDoubleLineEdit(QWidget* parent = nullptr);
+QLineEdit* createDoubleLineEdit(QWidget* parent = nullptr, int decimalCount = 9);
 
 QLineEdit* addDoubleEditor(QGridLayout& layout, const QString& name);
 
