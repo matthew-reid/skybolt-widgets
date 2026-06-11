@@ -297,6 +297,7 @@ QWidget* createDateTimeEditor(QtValue* value, QWidget* parent)
 {
 	QDateTimeEdit* widget = new QDateTimeEdit(parent);
 	widget->setDateTime(value->value().toDateTime());
+	widget->setTimeZone(QTimeZone::utc());
 
 	QObject::connect(value, &QtValue::valueChanged, widget, [widget, value]() {
 		widget->blockSignals(true);
