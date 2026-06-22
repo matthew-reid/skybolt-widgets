@@ -104,8 +104,8 @@ QWidget* createComboStringEditor(QtValue* value, QWidget* parent)
 	QStringList optionNames = value->property(QtPropertyMetadataKeys::optionNames).toStringList();
 	auto widget = new QComboBox(parent);
 	widget->addItems(optionNames);
-	widget->setCurrentText(value->value().toString());
 	widget->setEditable(value->property(QtPropertyMetadataKeys::allowCustomOptions).toBool());
+	widget->setCurrentText(value->value().toString());
 
 	QObject::connect(value, &QtValue::valueChanged, widget, [widget, value]() {
 		widget->blockSignals(true);
