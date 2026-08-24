@@ -18,7 +18,7 @@
 
 namespace skybolt {
 
-LatestErrorWidget::LatestErrorWidget(ErrorLogModel* model, QWidget* parent) :
+LatestErrorWidget::LatestErrorWidget(ErrorLogModel* model, QIcon icon, QWidget* parent) :
 	QWidget(parent)
 {
 	assert(model);
@@ -34,7 +34,7 @@ LatestErrorWidget::LatestErrorWidget(ErrorLogModel* model, QWidget* parent) :
 	QStyle* style = QApplication::style();
 
 	mExpandButton = new QToolButton(this);
-	mExpandButton->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::WindowNew));
+	mExpandButton->setIcon(std::move(icon));
 	mExpandButton->setToolTip("Expand");
 	mExpandButton->setFixedHeight(fm.height());
 	mExpandButton->setVisible(false);
@@ -67,6 +67,11 @@ LatestErrorWidget::LatestErrorWidget(ErrorLogModel* model, QWidget* parent) :
 		label->setText("");
 		mExpandButton->setVisible(false);
 	});
+}
+
+QIcon LatestErrorWidget::createDefaultIcon()
+{
+	return QIcon::fromTheme(QIcon::ThemeIcon::WindowNew);
 }
 
 } // namespace skybolt

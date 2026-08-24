@@ -155,7 +155,7 @@ static QWidget* createLatestErrorWidget(QWidget* parent)
 	errorLogModel->append({ QDateTime::currentDateTime(), ErrorLogModel::Severity::Warning, QString("This is a warning sample message.") });
 	errorLogModel->append({ QDateTime::currentDateTime(), ErrorLogModel::Severity::Error, QString("This is an error sample message\nwith multiple lines to test single-line display.") });
 
-	auto errorWidget = new LatestErrorWidget(errorLogModel, parent);
+	auto errorWidget = new LatestErrorWidget(errorLogModel, LatestErrorWidget::createDefaultIcon(), parent);
 	return makeLabeledWidget("LatestErrorWidget", errorWidget, parent);
 }
 

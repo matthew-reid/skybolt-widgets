@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QIcon>
 #include <QWidget>
 
 class QToolButton;
@@ -16,11 +17,13 @@ class LatestErrorWidget : public QWidget
 	Q_OBJECT
 
 public:
-	LatestErrorWidget(ErrorLogModel* model, QWidget* parent = nullptr);
+	LatestErrorWidget(ErrorLogModel* model, QIcon icon = createDefaultIcon(), QWidget* parent = nullptr);
 	
 	~LatestErrorWidget() override = default;
 
 	QToolButton* getExpandButton() const { return mExpandButton; }
+
+	static QIcon createDefaultIcon();
 
 private:
 	QToolButton* mExpandButton;

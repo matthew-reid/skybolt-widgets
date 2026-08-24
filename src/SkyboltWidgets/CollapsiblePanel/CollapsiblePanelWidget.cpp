@@ -8,6 +8,11 @@
 
 namespace skybolt {
 
+// We need to set both the background and border here according to https://doc.qt.io/qt-6/stylesheet-reference.html:
+// "If you only set a background-color on a QPushButton, the background may not appear unless you set the border property to some value.
+// This is because, by default, the QPushButton draws a native border which completely overlaps the background-color."
+const QString collapsiblePanelWidgetStyleSheet = "QToolButton:checked { background-color: palette(mid); border: none; }";
+
 CollapsiblePanelWidget::CollapsiblePanelWidget(const QString& title, QWidget* contentWidget, QWidget* parent) :
     QWidget(parent),
     mContentWidget(contentWidget),
@@ -17,7 +22,7 @@ CollapsiblePanelWidget::CollapsiblePanelWidget(const QString& title, QWidget* co
     mToggleButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     mToggleButton->setCheckable(true);
     mToggleButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    mToggleButton->setStyleSheet("QToolButton:checked { background-color: palette(mid); }");
+    mToggleButton->setStyleSheet(collapsiblePanelWidgetStyleSheet);
 
     mContentLayout = new QVBoxLayout();
     mContentLayout->setContentsMargins(4, 0, 4, 0);
