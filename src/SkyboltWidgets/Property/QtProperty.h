@@ -95,12 +95,15 @@ public:
 	//! @param applier is called when a QtProperty value should be applied to an external model (e.g. if the user pressent 'Enter' key in a text box
 	void addProperty(const QtPropertyPtr& property, QtValueUpdater updater = nullptr, QtValueApplier applier = nullptr, const std::string& sectionName = getDefaultSectionName());
 
+	void clearProperties();
+
 signals:
 	void modelReset(PropertiesModel*);
 
 protected:
 	SectionProperties mProperties;
 	std::map<QtPropertyPtr, QtValueUpdater> mPropertyUpdaters;
+	std::vector<QMetaObject::Connection> mPropertyApplierConnections;
 	bool mCurrentlyUpdating = false;
 };
 

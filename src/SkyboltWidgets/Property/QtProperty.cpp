@@ -36,6 +36,15 @@ void PropertiesModel::update()
 	}
 }
 
+PropertiesModel::PropertiesModel()
+{
+}
+
+PropertiesModel::PropertiesModel(const SectionProperties& properties) :
+	mProperties(properties)
+{
+}
+
 void PropertiesModel::addProperty(const QtPropertyPtr& property, QtValueUpdater updater, QtValueApplier applier, const std::string& sectionName)
 {
 	mProperties[sectionName].push_back(property);
@@ -46,22 +55,25 @@ void PropertiesModel::addProperty(const QtPropertyPtr& property, QtValueUpdater 
 
 	if (applier)
 	{
-		connect(property->value().get(), &QtValue::valueChanged, this, [=]() {
+		mPropertyApplierConnections.push_back(connect(property->value().get(), &QtValue::valueChanged, [=]() {
 			if (!mCurrentlyUpdating)
 			{
 				applier(*property->value(), {});
 			}
-		});
+		}));
 	}
 }
 
-PropertiesModel::PropertiesModel()
+void PropertiesModel::clearProperties()
 {
-}
+	mProperties.clear();
+	mPropertyUpdaters.clear();
 
-PropertiesModel::PropertiesModel(const SectionProperties& properties) :
-	mProperties(properties)
-{
+	for (const auto& connection : mPropertyApplierConnections)
+	{
+		QObject::disconnect(connection);
+	}
+	mPropertyApplierConnections.clear();
 }
 
 } // namespace skybolt
